@@ -1,0 +1,1078 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8" />
+		<title>Want Title..</title>
+		<script type="text/javascript" src="js/jquery-1.9.1.js" ></script>
+<!--	<style>
+		.div1{
+			text-align:center;
+		}
+	</style>-->
+	</head>
+	<body>
+		<div clas="div1" style="text-align:center;">
+			
+		<canvas id="can"></canvas>
+		</div>
+	</body>
+	<script type="text/javascript">
+		
+		/**
+		 * 常量值
+		 */
+		
+		/**
+		 * 墙尺寸
+		 */
+		var WALLSIZE=30; //墙尺寸
+		/**
+		 * 墙类型
+		 */
+		var WALLTYPE="Q"; //墙类型
+		/**
+		 * 墙生命
+		 */
+		var WALLLIFE=100; //墙生命
+		/**
+		 * 水平方向墙的数量
+		 */
+		var WallXCount=40; //水平方向墙的数量
+		/**
+		 * 垂直方向墙的数量
+		 */
+		var WallYCount=5; //垂直方向墙的数量
+		
+		
+		/**
+		 * 坦克大小
+		 */
+		var TANKESIZE=40;//坦克大小
+		/**
+		 * 我方坦克类型
+		 */
+		var MTANKETYPE="W";
+		/**
+		 * 敌方坦克类型
+		 */
+		var DTANKETYPE="D";//坦克类型
+		/**
+		 * 敌方坦克生命值
+		 */
+		var TANKELIFE=100; //坦克生命值
+		/**
+		 * 我方坦克生命值
+		 */
+		var TANKEMYLIFE=100; //我方坦克生命值
+		/**
+		 * 我方坦克移动速度
+		 */
+		var TANKEMSPEED=5;
+		/**
+		 * 敌方坦克移动速度
+		 */
+		var TANKESPEED=5;//移动速度
+		/**
+		 * 坦克数量
+		 */
+		var TankCount=15;//坦克数量
+		/**
+		 * 坦克复活次数
+		 */
+		var TANKER=3; //坦克复活次数
+		
+		/**
+		 * 指挥部大小
+		 */
+		var CMDSIZE=50;//指挥部大小
+		/**
+		 * 指挥部类型
+		 */
+		var CMDTYPE="C"; //指挥部类型
+		/**
+		 * 指挥部生命值
+		 */
+		var CMDLIFE=100;//指挥部生命值
+	
+		/**
+		 * 子弹大小
+		 */
+		var MISSSIZE=10;
+		/**
+		 * 我方子弹
+		 */
+		var MISSTYPE="M";
+		/**
+		 * 敌方子弹
+		 */
+		var DMISSTYPE="MD";
+		/**
+		 * 子弹速度
+		 */
+		var MISSSPEED=10;//子弹速度
+
+		/**
+		 * 爆炸类型
+		 */
+	    var BOOMTYPE="B";
+		/**
+		 * 所有物体集合
+		 */
+		var allUnit=[];
+		var unitIndex=0;  //初始值
+		
+		/**
+		 * 敌军数量
+		 */
+		var enemyCount=10; //敌军数量
+		/**
+		 * 歼敌数量
+		 */
+		var dieCount=0;  //歼敌数量
+		/**
+		 * 复活机会
+		 */
+		var relifeCount=TANKER; //复活机会
+		/**
+		 * 火力级别
+		 */
+		var level=3; //火力级别
+		var kills=[18,21,24,27,30,33];
+		/**
+		 * 敌方防御级别
+		 */
+		var Dprotect=2; //防御级别
+		/**
+		 * 我方防御级别
+		 */
+		var Mprotect=4; //防御级别
+		/**
+		 * 防御+血
+		 */
+		var defense=[3,6,9,12,15,18];
+		/**
+		 * 炸弹
+		 */
+		var boomCount=50; //炸弹
+		/**
+		 * 移动速度
+		 */
+		var speed=TANKEMSPEED; //移动速度
+		/**
+		 * 游戏状态
+		 */
+	    var gameStage=0;   //游戏状态
+	    /**
+	     * 游戏状态列表
+	     */
+		var gs=["就绪","激战","胜利","失败","暂停","冰冻敌军","被冰冻","待复活","等死"];
+		var enterChange=1;  //
+		var pauseChange=1;  //
+		var RChange=1;
+		var tempState;  // 
+		var keepLife;
+		
+		/**
+		 * 道具大小
+		 */
+		var PROSIZE=25;
+		/**
+		 * 道具类型
+		 */
+		var PROTYPE="P";
+		
+		var proChange=false;  //道具show改变
+		
+		var iceTime=4;  //冰冻时间
+		
+	
+		var canvas=document.getElementById("can");// $('#can');
+		canvas.width=screen.width*0.8;
+		canvas.height=screen.height*0.7;
+		var brush = canvas.getContext("2d");  //画笔
+		var stage;   //舞台
+		var tankeme;  //我方坦克
+		var tanke;  //敌方坦克
+		var command//指挥部
+		/************************************************************/
+		var begin=new Audio();//开始声音
+		var move =new Audio(); //坦克移动
+		var die = new Audio(); //跪了声音
+		var fire= new Audio(); //开火声音
+		var boom= new Audio();  //爆炸声音
+		var prop= new Audio();  //捡到具声音
+		var victory =new Audio();//胜利
+		var over = new Audio();//结束声音
+	/***********************************************************/
+	/**
+	 * 声音类
+	 */
+	function __initAudio(){
+		begin.src="sounds/bgm.wav";
+		move.src="sounds/move.wav";
+		die.src="sounds/die.wav";
+		fire.src="sounds/fire.wav";
+		boom.src="sounds/bomb2.wav";
+		prop.src="sounds/prop.wav";
+		victory.src="sounds/victory.mp3";
+		over.src="sounds/zeg.wav";
+	}
+	/*********************************************************************************/
+		/**
+		 * 舞台
+		 * @param {Object} obj
+		 */
+		Array.prototype.remove=function(obj){
+			var index=this.indexOf(obj);
+			if(index>-1){
+				this.splice(index,1);//删掉一个 （本身）
+			}
+		}
+		function Stage(){
+			this.data=new Array();
+		}
+		
+		Stage.prototype.add=function(obj){
+			this.data.push(obj);
+		}
+		
+		Stage.prototype.remove=function(obj){
+			this.data.remove(obj);
+		}
+		/**
+		 * 画
+		 * @param {Object} g 画笔
+		 */
+		Stage.prototype.draw=function(brush){
+			var list=this.data; //迭代集合
+			function loop(){
+				brush.clearRect(0,0,canvas.width,canvas.height);
+				brush.fillStyle="#3ff3ff";
+				brush.fillRect(0,0,canvas.width,canvas.height);	
+				paintInfo(brush);
+				list.forEach(function(o){ //遍历
+					o.paint(brush);
+				});
+				requestAnimationFrame(loop);				
+			}
+		   loop();
+		}
+		
+		/**
+		 * 上方字幕提示
+		 * @param {Object} g 画笔
+		 */
+		function paintInfo(g){
+			g.beginPath();
+             var tx=50,ty=15,tt=100;
+             g.fillStyle="#fff";
+             g.font="15px 楷体";
+             g.fillText("敌军数量："+enemyCount,tx,ty);
+             g.fillText("歼敌数量："+dieCount,tx+=tt,ty);            
+             g.fillText("复活机会："+relifeCount,tx+=tt,ty);
+             g.fillText("火力级别："+tankeme.level,tx+=tt,ty);
+             g.fillText("防御级别："+tankeme.protect,tx+=tt,ty);
+			 g.fillText("血量："+tankeme.life,tx+=tt,ty);
+             g.fillText("可用地雷："+boomCount,tx+=tt,ty);
+             g.fillText("移动速度："+tankeme.speed,tx+=tt,ty);
+             g.fillText("游戏状态："+gs[gameStage],tx+=tt,ty);
+			
+			 var tx1 = 10, ty1 = canvas.height/2-100;
+			g.fillStyle = "#333";
+			g.font = "18px 楷体";
+			g.fillText("Enter  ==>开始游戏", tx1, ty1);
+			ty1 += 20;
+			g.fillText("空格   ==>发射子弹", tx1, ty1);
+			ty1 += 20;
+			g.fillText("  P    ==>暂停继续", tx1, ty1);
+			ty1 += 20;
+			g.fillText("  R    ==>复活生命", tx1, ty1);
+			ty1 += 20;
+			g.fillText("  B    ==>埋放地雷", tx1, ty1);
+			ty1 += 20;
+			g.fillText(" F5    ==>重新开始", tx1, ty1);
+			 
+			 
+             var txx=canvas.width/2-65,tyy=canvas.height/2-20;
+             if(gameStage==0&&enterChange==1){
+             	begin.play();
+             	g.fillStyle="#FF6100";
+                g.font="35px 黑体";
+                g.fillText("按Enter键开始游戏！",txx,tyy);
+             }
+             if(gameStage==2){
+             //	var txx=canvas.width/2-65,tyy=canvas.height/2-20;
+             	g.fillStyle="#FF6100";
+                g.font="35px 黑体";
+                g.fillText("大吉大利，晚上吃鸡!",txx,tyy);
+				victory.play();
+             }
+             if(gameStage==4&&pauseChange==1){
+             	g.fillStyle="#FF6100";
+                g.font="35px 黑体";
+                g.fillText("按【P】键继续游戏！",txx,tyy);
+             }
+			 if(gameStage==7&&RChange==1){
+             	g.fillStyle="#FF6100";
+                g.font="35px 黑体";
+                g.fillText("按【R】键复活！",txx,tyy);
+             }if(gameStage==3 ||command.life==0){
+			    over.play();
+			    gameStage=3;
+			    g.fillStyle="#FF6100";
+                g.font="35px 黑体";
+				g.fillText("您的基地被敌军炸了",txx,tyy-50)
+                g.fillText("Game Over ! 按【F5】键重新准备开战！",txx,tyy);
+			 }
+             
+ 			g.stroke();
+		}
+		/**
+		 * 血条
+		 * @param {Object} g画笔
+		 * @param {Object} h 高度
+		 * @param {Object} obj  对象
+		 */
+		function paintBlood(g,h,obj){
+			var c;  //血条颜色
+			if(obj.life>90){
+				c="#5BBD2B";
+			}else if(obj.life>75){
+				c="#98D0B9";
+			}else if(obj.life>60){
+				c="#FFFAB3";
+			}else if(obj.life>45){
+				c="#F9F400";
+			}else if(obj.life>30){
+				c="#EB7153";
+			}else{
+				c="red";
+			}
+			g.beginPath();
+			g.fillStyle=c;
+			var a=(obj.life/100)*obj.w;
+			g.fillRect(obj.x,obj.y-h-1,a,h);//填充颜色
+			g.strokeStyle=c;
+			g.strokeRect(obj.x,obj.y-h-1,obj.w,h);//边框颜色
+			g.stroke();
+		}
+		
+		/****************************************************/
+		/**
+		 * 基类
+		 */
+		//index是对象的下标
+		function __init__(x,y,w,h,type,life,index,src){
+			this.x=x;
+			this.y=y;
+			this.w=w;
+			this.h=h;
+			this.type=type;
+			this.life=life;
+			this.index=index;
+			this.src=src;
+			return this;
+		}
+		__init__.prototype.paint=function(g){
+			var img=new Image();
+			if(this.type==CMDTYPE||this.type==MTANKETYPE||this.type==DTANKETYPE||this.type==WALLTYPE){
+				paintBlood(g,this.type==CMDTYPE?3:5,this);
+			}
+			img.src="img/"+this.src;
+			g.drawImage(img,this.x,this.y,this.w,this.h);
+			
+		}
+		/**
+		 * 墙类
+		 * @param {Object} x
+		 * @param {Object} y
+		 */
+		function Wall(x,y){
+			var o=new __init__(x,y,WALLSIZE,WALLSIZE,WALLTYPE,WALLLIFE,unitIndex++,"qiang.gif");
+		   o.protect=1;
+			o.boom =function(){
+				var b=new Boom(this.x,this.y);
+				stage.add(b);
+			}
+		   return o;
+		}
+		/**
+		 * 初始化墙
+         * @param {Object} counts	要设置墙的数量	 
+		 * @param {Object} y y的坐标
+		 */
+		function __initXWall(y,counts){
+			var x= (canvas.width-(counts*WALLSIZE))/2;
+			for(var i=0;i<counts;i++){
+				var wall=new Wall(x,y);
+				x+=WALLSIZE;
+				stage.add(wall);
+				allUnit.push(wall);
+			}
+		}
+		/**
+		 * 初始化墙 
+		 * @param {Object} x x的坐标
+		 */
+		function __initYWall(x,counts){
+			var y= (canvas.height-(counts*WALLSIZE))/2;
+			for(var i=0;i<counts;i++){
+				var wall=new Wall(x,y);
+				y+=WALLSIZE;
+				stage.add(wall);
+				allUnit.push(wall);
+			}
+		}
+		
+		
+		
+		/**
+		 * 坦克类
+		 * @param {Object} x
+		 * @param {Object} y
+		 * @param {Object} type 敌我方
+		 * @param {Object} life  生命值
+		 * @param {Object} speed  移速
+		 * @param {Object} dir  方向
+		 * @param {Object} src  图片路径
+		 */
+		function Tanke(x,y,type,life,speed,dir,src){
+			var o=new __init__(x,y,TANKESIZE,TANKESIZE,type,life,unitIndex++,src);
+			o.speed=speed;
+			o.dir=dir;//方向
+			
+				o.left=false;
+				o.up=false;
+				o.right=false;
+				o.down=false;
+			/**
+			 * 坦克
+			 */
+			o.move=function(){
+				var oldx=this.x;
+				var oldy=this.y;
+				if(this.left){	
+					this.src=this.type==MTANKETYPE?"tL.gif":"dL.gif";
+					this.x-=this.speed;
+				}else if(this.up){
+					this.src=this.type==MTANKETYPE?"tU.gif":"dU.gif";
+					this.y-=this.speed;
+				}else if(this.right){	
+					this.src=this.type==MTANKETYPE?"tR.gif":"dR.gif";
+					this.x+=this.speed;
+				}else if(this.down){
+					this.src=this.type==MTANKETYPE?"tD.gif":"dD.gif";
+					this.y+=this.speed;
+				}
+				if(isHit(this)){
+					this.x=oldx;
+					this.y=oldy;
+				}
+    /******move********/	move.play();			
+			}
+			o.fire =function(){
+				var m=new Missile(this);
+				stage.add(m);
+				m.timer=setInterval(function(){
+					if(gameStage!=4){
+						m.move();
+					}
+				},20);
+				fire.play();
+			}
+			
+			o.boom =function(){
+				var b=new Boom(this.x,this.y);/***************************************/
+				stage.add(b);
+				boom.play();
+			}
+			o.ice=function(type){
+				if(gameStage!=2&&gameStage!=3){
+					if(type==MTANKETYPE){
+						if(gameStage!=5){
+							tempState=gameStage;
+							thawTimer();
+							gameStage=5;   // 我方冰冻敌军
+						}
+					}else{
+						if(gameStage!=6){
+							tempState=gameStage;
+							thawTimer();
+							gameStage=6;   // 敌军冰冻我方坦克
+						}
+					}
+				}
+				ice.play();
+			}
+			o.keep=function(oldlife){
+		//	console.log(oldlife);
+				if(gameStage!=2&&gameStage!=3){
+      /****************/
+					KTimer(oldlife);
+				//	o.life=oldlife;
+				//	console.log(o.life);
+				}
+			}
+			return o;
+		}
+		/**
+		 * 冰冻时间类
+		 */
+		function thawTimer(){
+			iceTimer=setInterval(function(){
+				iceTime--;
+				if(iceTime==0){
+					iceTime=4;
+					if(gameStage==5||gameStage==6){
+						gameStage=tempState;
+					}
+					clearInterval(iceTimer);
+				}
+			},1000);
+		}
+		
+		/**
+		 * 无敌时间类
+		 */
+		function KTimer(life){
+			keepTimer=setInterval(function(){
+				iceTime--;
+				if(iceTime==0){
+					iceTime=4;
+					clearInterval(keepTimer);
+				}
+				keepLife=life;
+			},1000);
+		}
+		/**
+		 * 随机生成地方坦克
+		 * @param {Object} count
+		 */
+		function buitEnemy(count){
+			console.log(count);
+			if(enemyCount-dieCount>20){
+				return ;
+			}else{
+				for(var i=0; i<=count;i++){
+				var x=parseInt(Math.random()*(canvas.width-300))+80;   //TOOD
+				var y=parseInt(Math.random()*(canvas.height-300))+80;
+				var t=new TankEnemy(x,y);
+				while(isHit(t)){
+					t.x=parseInt(Math.random()*(canvas.width-300))+80;   //TOOD
+				    t.y=parseInt(Math.random()*(canvas.height-300))+80;
+				}
+				stage.add(t);
+				allUnit.push(t);
+			}
+				enemyCount+=count;
+			}
+			
+		}
+		/**
+		 * 是否发生碰撞
+		 * @param {Object} o1 我方坦克
+		 * @param {Object} o2 其他物体（墙，敌方坦克）
+		 */
+		function isHit(o1){
+			var Hit=false;
+			if(o1.x<0||o1.x>(canvas.width-o1.w)||o1.y<0||o1.y>(canvas.height-o1.h)){
+				return true;
+			}
+			for(var i=0;i<allUnit.length;i++){
+				var o2=allUnit[i];
+				if(o1.index==o2.index){
+					continue;
+				}
+				if((o1.x>o2.x&&o1.x-o2.x<o2.h )||(o2.x>o1.x&&o2.x-o1.x<o1.h)||o1.x==o2.x){
+					Hit=HitTest(o1,o2);
+					if(Hit){
+						if(o1.type==DMISSTYPE || o1.type=="MW"){
+							
+							if(o1.type==DMISSTYPE&& o2.type==DTANKETYPE){   //敌方的子弹不能打敌方坦克
+								continue;
+							}
+							o2.life= o2.life- o1.kill+ defense[o2.protect];
+							
+							if(o2.life<=0){
+								o2.life=0;
+								stage.remove(o2);//跪了 移除
+								allUnit.remove(o2); //从障碍物集合中移除
+								if(o2.type==DTANKETYPE){
+									dieCount ++;
+									if(dieCount>=enemyCount){
+										gameStage=2;   //歼敌数量完成 胜利
+															
+										/*******************************************************************/
+									}
+								}else if(o2.type==MTANKETYPE){
+									gameStage=relifeCount>0?7:8;  //TOOD  我方复活机会为0 则输
+									die.play();
+								}
+								o2.boom();   //没血了爆炸
+							}
+						}else if(o1.type==DTANKETYPE||o1.type==MTANKETYPE){   //拾取道具
+							if(o2.type==PROTYPE){
+								if(o2.imgIndex==0){
+									o1.speed+= o1.speed>9?0:1;   //拾取齿轮图标的效果
+								}else if(o2.imgIndex==1){
+									o1.life+=20;    //TOOD 拾取抱抱图标的效果
+									o1.life=o1.life>=TANKEMYLIFE?TANKEMYLIFE:o1.life;
+								}else if(o2.imgIndex==2){
+									o1.ice(o1.type);		//TOOD 拾取猪头图标的效果														    
+								}else if(o2.imgIndex==3){
+									o1.level+=o1.level>4?0:1;    //TOOD 拾取愤怒图标的效果   加火力值
+								}else if(o2.imgIndex==4){
+									o1.protect+=o1.protect>4?0:1;;    //TOOD 拾取da图标的效果      加防御
+								}else if(o2.imgIndex==5){							 
+									if(o1.type==MTANKETYPE){
+/*****************/							command.life=CMDLIFE;//TOOD 拾取房子图标的效果  指挥部墙血量加满
+									        command.protect+=command.protect>4?0:1;
+									}else{
+									command.protect-= command.protect<1?0:1;
+									}
+									
+								}else if(o2.imgIndex==6){
+								    o1.speed -= o1.speed<2?0:1;    //TOOD 拾取西瓜图标的效果     减速
+								}else if(o2.imgIndex==7){
+									o1.life=o1.life-(parseInt(Math.random()*60));    //TOOD 拾取衰图标的效果   减血20
+								    if(o1.life<=0){
+								    	o1.life=0;
+								    	o1.boom();
+										stage.remove(o1);
+										allUnit.remove(o1);
+								    	if(o1.type==DTANKETYPE){
+								    		dieCount++;
+								    		if(dieCount>=enemyCount){
+										      gameStage=2;   //歼敌数量完成 胜利
+									    }
+								    	}else{
+								    		gameStage=relifeCount>0?7:8;
+											die.play();
+/********************************/								    		
+								    	}
+								    }
+								}else if(o2.imgIndex==8){
+									  if(o1.type==MTANKETYPE){      //TOOD 拾取草莓图标的效果     加复活机会   敌方产生新坦克
+									relifeCount++;
+									  }else{
+									  	buitEnemy(3);
+									  }
+								}else if(o2.imgIndex==9){
+									     if(o1.type==DTANKETYPE){               //TOOD 拾取笑脸图标的效果   无敌状态 血加满
+										o1.life=TANKELIFE;
+										}else{
+										o1.life=TANKEMYLIFE;
+										}              
+										
+								}else if(o2.imgIndex==10){
+								     if(o1.type==MTANKETYPE){
+								     	continue;     //TOOD 拾取地雷图标的效果   
+								    }else if(o1.type==DTANKETYPE){
+								    	o1.life=o1.life-(parseInt(Math.random()*60)+10);      //减血
+								        if(o1.life<=0){
+								    	o1.life=0;
+								    	o1.boom();
+								    	dieCount++;
+								    	if(dieCount>=enemyCount){
+										      gameStage=2;   //歼敌数量完成 胜利
+									    }
+								    	stage.remove(o1);
+								    	allUnit.remove(o1);
+								    	}
+								    }
+								}				
+								stage.remove(o2);   //拾取道具 移除
+								allUnit.remove(o2);  //从障碍物集合移除
+								prop.play();
+							}
+						}
+						return true;
+					}
+					
+				}
+			}
+		}
+		/**
+		 * 碰撞方法封装
+		 * @param {Object} o1
+		 * @param {Object} o2
+		 */
+		function HitTest(o1,o2){
+			       if(o1.y>o2.y&&o1.y-o2.y<o2.w ){
+						return true;
+					}else if(o1.y<o2.y&&o2.y-o1.y<o1.w){
+						return true;
+					}else if(o1.y==o2.y){
+						return true;
+					}else{
+						return false;
+					}
+		}
+		
+		/**
+		 * 爆炸
+		 * @param {Object} x
+		 * @param {Object} y
+		 */
+		function Boom(x,y){
+		  var o=new __init__(x,y,10,10,BOOMTYPE,1,unitIndex++,"1.gif");
+		  o.timer=null;
+		  var me=o;
+		  o.begin=function(){
+		  	me.timer=setInterval(function(){
+		  		me.w+=5;
+		  		me.h+=5;
+		  		if(me.w>=40){
+		  			clearInterval(me.timer);
+		  			stage.remove(me);
+		  		}
+		  	},50);
+		  }
+		  o.begin();
+		  return o;
+		}
+		/**
+		 * 子弹
+		 * @param {Object} tank
+		 */
+		function Missile(tank){
+			var mx=tank.x;
+			var my=tank.y;
+			if(tank.dir==1){
+				mx+=15;     //TOOD
+			}else if(tank.dir==0){
+				my+=15;
+			}else if(tank.dir==2){
+				mx+=30;
+				my+=15;
+			}else if(tank.dir==3){
+				my +=30;
+				mx +=15;
+			}
+			
+			var src="m"+tank.level+".gif";
+			var o=new __init__(mx,my,MISSSIZE,MISSSIZE,MISSTYPE+tank.type,1,tank.index,src);
+			
+			o.dir=tank.dir;
+			o.speed=MISSSPEED;
+			o.timer=null;
+			o.kill=kills[level]; //子弹杀伤力
+			var oldx=this.x;
+			var oldy=this.y;
+			o.move=function(){
+				if(this.dir==0){
+					this.x -=this.speed;
+				}else if(this.dir==1){
+					this.y -=this.speed;
+				}else if(this.dir==2){
+					this.x +=this.speed;
+				}else if(this.dir==3){
+					this.y +=this.speed;
+				}
+				if(isHit(this)){
+					this.x=oldx;
+					this.y=oldy;
+					stage.remove(this);
+					
+					
+				}
+			}	
+			return o;
+		}
+		
+		/**
+		 * 我方坦克
+		 * @param {Object} x
+		 * @param {Object} y
+		 */
+		function TankAllies(x,y){
+			var o=new Tanke(x,y,MTANKETYPE,TANKEMYLIFE,TANKEMSPEED,1,"tU.gif");
+			o.protect=Mprotect;//保护级别
+			o.level=level;
+			o.layMine=function(){
+				if(boomCount>0){
+					var mine=new Property(this.x+7,this.y+8,10);
+					stage.add(mine);
+					allUnit.push(mine);
+					boomCount--
+				}
+			}
+			return o;
+		}
+		/**
+		 * 初始化我方坦克
+		 */
+		function __initAllies(x,y){
+		   tankeme=new TankAllies(x,y);
+			stage.add(tankeme);
+			allUnit.push(tankeme);
+		}
+		
+		/**
+		 * 坦克复活类
+		 */
+		function tankmeRelife(){
+			var x=tankeme.x;
+			var y=tankeme.y;
+			tankeme=new TankAllies(x,y);
+			stage.add(tankeme);
+			allUnit.push(tankeme);
+			while(isHit()){  //生成位置卡位
+				tankme.x+=50;
+			}
+			relifeCount--;
+		}
+		/**
+		 * 敌方坦克
+		 * @param {Object} x
+		 * @param {Object} y
+		 */
+		function TankEnemy(x,y){
+			var o=new Tanke(x,y,DTANKETYPE,TANKELIFE,TANKESPEED,3,"dD.gif");
+			o.protect=Dprotect;//保护级别
+			o.level=0;
+			o.begin=function(){
+				var n=parseInt(Math.random()*100);
+				if(n%68==0){
+					n=parseInt(Math.random()*4);
+					this.dir=n;
+				}
+				this.left=this.dir==0?true:false;
+				this.up=this.dir==1?true:false;
+				this.right=this.dir==2?true:false;
+				this.down=this.dir==3?true:false;
+				this.move();
+				/************************************************************************/
+			}
+			return o;
+		}
+		/**
+		 * 初始化敌方坦克
+		 */
+		function __initEnemy(){
+			var x= (canvas.width-enemyCount*TANKESIZE)/2;
+			var y=30;
+			for(var i=0;i<enemyCount;i++){
+			   tanke=new TankEnemy(x,y);
+				x+=TANKESIZE+2;
+				stage.add(tanke);
+				allUnit.push(tanke);
+			}
+		}
+		/**
+		 * 指挥部
+		 * @param {Object} x
+		 * @param {Object} y
+		 * @param {Object} src 指挥官图片路径
+		 */
+		function Cmd(x,y,src){
+			var o= new __init__(x,y,CMDSIZE,CMDSIZE,CMDTYPE,CMDLIFE,unitIndex++,src);
+	        o.protect=3;//保护级别
+		//	var wx=x-WALLSIZE-3;
+		//	var wy=y-WALLSIZE-3;
+			o.wall=null;//new Wall(wx,wy);
+                 o.boom =function(){
+				var b=new Boom(this.x,this.y);
+				stage.add(b);
+			}
+	        return o;
+		}
+		/**
+		 * 初始化指挥部
+		 * @param {Object} src 指挥官图片路径
+		 */
+		function __initCmd(src){
+			var x=(canvas.width-CMDSIZE)/2;
+			var y=canvas.height-CMDSIZE;
+			var wx=x-WALLSIZE-3;
+			var wy=y-WALLSIZE-3;
+		    command=new Cmd(x,y,src);
+			for(var i=0;i<8;i++){
+				 command.wall=new Wall(wx,wy);
+				stage.add(command.wall);
+				allUnit.push(command.wall);
+				if(i<3){
+					wx+=WALLSIZE;
+				}else if(i==3||i==4){
+					wy+=WALLSIZE;
+				}else if(i==5){
+					wx=x-WALLSIZE-5;
+					wy-=WALLSIZE;
+				}else if(i==6){
+					wy+=WALLSIZE;
+				}
+			}
+			stage.add(command);
+			allUnit.push(command);
+		}
+		/*****************************道具start*************************/
+		/**
+		 * 道具类
+		 * @param {Object} x
+		 * @param {Object} y
+		 * @param {Object} count  道具图片的数字
+		 */
+		function Property(x,y,count){
+			var n=count;
+			if(x==undefined || y==undefined ||n==undefined){
+				x=parseInt(Math.random()*(canvas.width-100))+50;
+				y=parseInt(Math.random()*(canvas.height-100))+50;
+				n=parseInt(Math.random()*10);
+				
+			}
+			var src="x"+n+".gif";
+			var o=new __init__(x,y,PROSIZE,PROSIZE,PROTYPE,1,unitIndex++,src);
+			o.show=proChange;
+			o.imgIndex=n;
+			o.change=function(){
+				this.imgIndex=parseInt(Math.random()*10);
+				this.src="x"+this.imgIndex+".gif";
+				this.x=parseInt(Math.random()*(canvas.width-100))+50;   //TOOD
+				this.y=parseInt(Math.random()*(canvas.height-100))+50;
+				//o.show=o.show;
+				proChange=!proChange;
+			}
+			return o;
+		}
+		
+		
+		//添加事件监听
+		window.addEventListener("keydown",function(e){
+			//console.log(e.keyCode);
+			var c=e.keyCode;
+			    if(c==37){
+			    tankeme.left=true;
+			    tankeme.dir=0; //子弹方向
+			    }else if(c==38){
+			    tankeme.dir=1;
+			    tankeme.up=true;
+			    }else if(c==39){
+				tankeme.dir=2;
+			    tankeme.right=true;
+			    }else if(c==40){
+				tankeme.dir=3;
+			    tankeme.down=true;
+			    }else if(c==82&& gameStage==7){   //R键复活
+				  relifeCount--;
+				  __initAllies((canvas.width/2)-130,canvas.height-TANKESIZE);
+			      allUnit.push(tankeme);
+						RTimer=setInterval(function(){
+			    			RChange=!RChange;
+			    		},500);
+			    		gameStage=1;
+			    	  if(gameStage==1){			    		
+			    		clearInterval(RTimer);
+						RChange=!RChange;
+			    	}
+				
+				}else if(c==66&&(gameStage==1||gameStage==5)){
+					tankeme.layMine();//埋雷
+				}
+				 		
+		});
+		
+		window.addEventListener("keyup",function(e){
+			//console.log(e.keyCode);
+			var c=e.keyCode;
+			    if(c==37){
+			    	
+			    	tankeme.left=false;  //开关		    	
+			    }else if(c==38){
+			       
+			    	tankeme.up=false;
+			    }else if(c==39){
+			    	
+			    	tankeme.right=false;
+			    }else if(c==40){
+			    	
+			    	tankeme.down=false;
+			    }else if(c==32){    //空格键 我方坦克开火
+			    	if(gameStage==1||gameStage==5){
+			    		tankeme.fire();
+			    	}
+					
+			    }else if(c==80){   //P暂停
+			    	if(gameStage==1||gameStage>4){
+			    		tempState=gameStage;
+			    		gameStage=4;
+			    		pauseTimer=setInterval(function(){
+			    			pauseChange=!pauseChange;
+			    		},500);
+			    	}else if(gameStage==4){
+			    		gameStage=tempState;
+			    		clearInterval(pauseTimer);
+			    	}
+			    	
+			    }else if(c==13&&(gameStage==0)/*||gameStage==4*/){  //回车键 开始
+			    	clearInterval(enterTimer);
+			    	gameStage=1;
+			    	setInterval(function(){
+			    		if(gameStage!=4&&gameStage!=5){
+			    			for(var i=0;i<allUnit.length;i++){
+			    				if(allUnit[i].type==DTANKETYPE){
+									tanke=allUnit[i];
+			    					allUnit[i].begin();
+									var n=parseInt(Math.random()*100);
+				                     if(n%23==0){
+					                        allUnit[i].fire();
+				                        }
+			    				}
+			    			}
+			    		}
+			    	},50);
+					
+			    }
+				 		
+		});
+		
+		
+		
+		/**********************************************/
+		window.onload=function(){
+			stage=new Stage();
+			__initAudio(); //声音 bgm
+			__initEnemy();  //敌方坦克
+			__initAllies((canvas.width/2)-130,canvas.height-TANKESIZE); //我方坦克
+		//	__initAllies(800,300);
+			__initXWall(80,20);  //水平方向的墙 第一个参数：y的坐标 第二个参数：墙的数量
+			__initYWall(450,8);  //垂直方向墙  第一个参数：x的坐标 第二个参数：墙的数量
+			__initCmd("hero.gif"); //基地 参数：基地的图片
+		  var p1=new Property();   //道具
+		  proTimer=setInterval(function(){
+		  	if(gameStage==0||gameStage==4){
+		  		return ;
+		  	}
+		  	if(gameStage==2 ||gameStage==3 ){
+		  		clearInterval(proTimer);
+		  		return ;
+		  	}
+		  	if(p1.show){  //道具显示
+		  		stage.remove(p1);
+		  		allUnit.remove(p1);
+		  		p1.change();     
+		  	}else{        //道具消失
+		  		stage.add(p1);
+		  		allUnit.push(p1);
+		  		p1.change();
+		  	}
+		  },parseInt(Math.random()*4000)+3000); //道具消失时间
+		  
+		//  stage.add(p1);
+			
+			stage.draw(brush);
+			//定时器
+			setInterval(function(){
+				if(gameStage==1||gameStage==5){
+				tankeme.move();
+				}
+			},40);   //每40毫秒刷新一次
+		}
+		enterTimer = setInterval(function(){
+			enterChange=!enterChange;
+		},500);
+		
+		RTimer=setInterval(function(){
+			    			RChange=!RChange;
+			    		},500);
+	</script>
+</html>
